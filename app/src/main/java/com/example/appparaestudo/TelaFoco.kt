@@ -41,11 +41,15 @@ fun TelaFoco(
     aoVoltar: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val duracaoMs = 25L * 60L * 1000L
+    val duracaoMs = 25L * 60L * 1000L // Duração fixa da sessão: 25 minutos em milissegundos (técnica Pomodoro).
 
     var inicio by remember { mutableStateOf<Long?>(null) }
     var acumulado by remember { mutableLongStateOf(0L) }
-    var tick by remember { mutableIntStateOf(0) }
+    var tick by remember { mutableIntStateOf(0) }  // Três estados que sobrevivem a recomposições:
+
+    inicio: timestamp (em ms) de quando o cronômetro foi ligado. null significa "pausado".
+    acumulado: tempo total já passado, somado toda vez que o usuário pausa.
+    tick: um contador que só serve para forçar recomposição (veja o próximo bloco — é meio "gambiarra", explico abaixo).
 
     val rodando = inicio != null
     val emAndamento = if (inicio != null) Date().time - inicio!! else 0L
@@ -54,14 +58,19 @@ fun TelaFoco(
     val minutos = (restante / 60000L).toInt()
     val segundos = ((restante % 60000L) / 1000L).toInt()
     val porcentagem = ((decorrido * 100L) / duracaoMs).toInt()
-
+    // rodando: true se o cronômetro está ativo.
+    //emAndamento: quanto tempo passou desde que apertou "Iniciar" (calculado toda vez que a tela recompõe).
+    //decorrido: tempo acumulado + tempo em andamento. O tick * 0L no final é curioso: ele não muda o valor (qualquer número vezes 0 é 0), mas faz o Compose "achar" que decorrido depende de tick. Isso é um truque para forçar recomposição quando tick muda — só que, como vamos ver, nada incrementa tick automaticamente.
+    //restante: quanto falta para os 25 minutos acabarem (nunca fica negativo).
+    //minutos / segundos: convertidos a partir de restante, para exibir no relógio.
+    //porcentagem: quanto da sessão já foi cumprido, em %.
     Column(
         modifier = modifier
             .fillMaxSize()
             .background(VerdeEscuro)
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(20.dp)
+        verticalArrangement = Arrangement.spacedBy(20.dp)  // Uma coluna que ocupa a tela toda, fundo verde escuro, com 24dp de margem e 20dp de espaço entre os elementos filhos.
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -77,7 +86,7 @@ fun TelaFoco(
                 text = "  Sessao de estudo",
                 color = Bege
             )
-        }
+        }   // Uma seta "<" clicável que chama aoVoltar() (volta para a tela anterior) e o título da tela ao lado.
 
         Text(
             text = materiaInicial,
@@ -156,7 +165,7 @@ fun TelaFoco(
                     color = Bege,
                     fontSize = 13.sp
                 )
-            }
+            }   // Um cartão fixo, com texto estático (não depende de nenhum estado) mostrando o objetivo da sessão.
         }
 
         Button(
@@ -172,5 +181,5 @@ fun TelaFoco(
         ) {
             Text(text = "Encerrar sessao")
         }
-    }
+    }   // Ao clicar: se o cronômetro estiver rodando, finaliza a contagem (soma o tempo em andamento a acumulado) e depois chama aoVoltar() para sair da tela.
 }
